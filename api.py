@@ -6,8 +6,8 @@ from datetime import datetime
 import asyncio
 from contextlib import asynccontextmanager
 import concurrent.futures
-from product_rag_langgraph import run_product_rag, initialize_models
-from document_rag_langgraph import run_document_rag, initialize_models as init_document_models
+from src.product_rag_langgraph import run_product_rag, initialize_models
+from src.document_rag import run_document_rag, initialize_models as init_document_models
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Pydantic models for request/response validation
 class SearchRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=500, description="User search query")
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -46,13 +46,13 @@ class SearchResponse(BaseModel):
     query: str
     timestamp: str
     processing_time_ms: float
-    
+
     class Config:
         populate_by_name = True
 
 class DocumentSearchRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=500, description="User question about documents")
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -66,7 +66,7 @@ class DocumentSearchResponse(BaseModel):
     query: str
     timestamp: str
     processing_time_ms: float
-    
+
     class Config:
         populate_by_name = True
 
@@ -106,23 +106,23 @@ async def health_check():
 async def search_products(request: SearchRequest):
     """
     Search for products using semantic search and get AI-powered recommendations
-    
+
     - **query**: Natural language search query (e.g., "comfortable running shoes under $100")
     """
     start_time = datetime.utcnow()
-    
+
     try:
         logger.info(f"[PRODUCTS] Received search request: '{request.query}'")
-        
+
         # Run the RAG pipeline in executor to avoid blocking
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(executor, run_product_rag, request.query)
-        
+
         end_time = datetime.utcnow()
         processing_time = (end_time - start_time).total_seconds() * 1000
-        
+
         logger.info(f"[PRODUCTS] Search completed in {processing_time:.2f}ms - Found {len(result['Products'])} products")
-        
+
         return SearchResponse(
             LlmResponse=result["LlmResponse"],
             Products=result["Products"],
@@ -130,7 +130,7 @@ async def search_products(request: SearchRequest):
             timestamp=end_time.isoformat(),
             processing_time_ms=processing_time
         )
-        
+
     except Exception as e:
         logger.error(f"[PRODUCTS] Error processing search request: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -140,23 +140,23 @@ async def search_products(request: SearchRequest):
 async def search_documents(request: DocumentSearchRequest):
     """
     Search documentation and get AI-powered answers
-    
+
     - **query**: Natural language question (e.g., "What is the return policy?")
     """
     start_time = datetime.utcnow()
-    
+
     try:
         logger.info(f"[DOCUMENTS] Received search request: '{request.query}'")
-        
+
         # Run the RAG pipeline in executor to avoid blocking
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(executor, run_document_rag, request.query)
-        
+
         end_time = datetime.utcnow()
         processing_time = (end_time - start_time).total_seconds() * 1000
-        
+
         logger.info(f"[DOCUMENTS] Search completed in {processing_time:.2f}ms - Found {len(result['Documents'])} document chunks")
-        
+
         return DocumentSearchResponse(
             LlmResponse=result["LlmResponse"],
             Documents=result["Documents"],
@@ -164,7 +164,7 @@ async def search_documents(request: DocumentSearchRequest):
             timestamp=end_time.isoformat(),
             processing_time_ms=processing_time
         )
-        
+
     except Exception as e:
         logger.error(f"[DOCUMENTS] Error processing search request: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

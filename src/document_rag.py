@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from typing import TypedDict, List, Optional, Literal
 from langgraph.graph import StateGraph, END
 from sentence_transformers import SentenceTransformer
@@ -5,16 +9,7 @@ from pymongo import MongoClient
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-# Configuration
-MONGO_URI = os.getenv("MONGO_URI")
-DATABASE_NAME = os.getenv("DATABASE_NAME")
-DOCUMENTS_COLLECTION = os.getenv("COLLECTION_NAME")
-DOCUMENTS_VECTOR_INDEX_NAME = os.getenv("DOCUMENTS_VECTOR_INDEX_NAME")
+from src.config import langgraphConfig
 
 # Define State Schema
 class DocumentRAGState(TypedDict):
@@ -44,9 +39,9 @@ def initialize_models():
     
     if mongo_collection is None:
         print("Connecting to MongoDB...")
-        client = MongoClient(MONGO_URI)
-        db = client[DATABASE_NAME]
-        mongo_collection = db[DOCUMENTS_COLLECTION]
+        client = MongoClient(langgraphConfig.MONGO_URI)
+        db = client[langgraphConfig.DATABASE_NAME]
+        mongo_collection = db[langgraphConfig.DOCUMENTS_RETURN_POLOCY_COLLECTION_NAME]
 
 # Node 1: Validate Input
 def validate_input(state: DocumentRAGState) -> DocumentRAGState:
@@ -110,7 +105,7 @@ def search_documents(state: DocumentRAGState) -> DocumentRAGState:
     pipeline = [
         {
             "$vectorSearch": {
-                "index": DOCUMENTS_VECTOR_INDEX_NAME,
+                "index": langgraphConfig.DOCUMENTS_VECTOR_INDEX_NAME,
                 "path": "embedding",
                 "queryVector": state["query_embedding"],
                 "numCandidates": 100,

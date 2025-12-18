@@ -11,7 +11,6 @@ __all__ = ['SetupConfig', 'setupConfig']
 
 @dataclass(frozen=True)
 class SetupConfig:
-    """Application configuration loaded from environment variables"""
     MONGO_URI: str
     DATABASE_NAME: str
     DOCUMENTS_RETURN_POLOCY_COLLECTION_NAME: str
