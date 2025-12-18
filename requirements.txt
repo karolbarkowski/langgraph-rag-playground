@@ -1,0 +1,28 @@
+# Web Framework & API
+fastapi
+uvicorn
+pydantic
+
+# LangChain & LangGraph
+langgraph
+langchain-ollama
+langchain-core
+
+# ML & Embeddings
+sentence-transformers
+
+# Database
+pymongo
+
+# Web Scraping
+playwright
+beautifulsoup4
+
+# Data Processing
+pandas
+
+# Environment Variables
+python-dotenv
+
+# Progress Bars
+tqdm
