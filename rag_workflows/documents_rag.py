@@ -9,7 +9,7 @@ from pymongo import MongoClient
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from src.config import langgraphConfig
+from rag_workflows.config import langgraphConfig
 
 # Define State Schema
 class DocumentRAGState(TypedDict):

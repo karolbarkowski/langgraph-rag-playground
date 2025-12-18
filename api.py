@@ -1,13 +1,13 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
-import logging
 from datetime import datetime
-import asyncio
 from contextlib import asynccontextmanager
+from rag_workflows.products_rag import run_product_rag, initialize_models
+from rag_workflows.documents_rag import run_document_rag, initialize_models as init_document_models
 import concurrent.futures
-from src.product_rag_langgraph import run_product_rag, initialize_models
-from src.document_rag import run_document_rag, initialize_models as init_document_models
+import asyncio
+import logging
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
 

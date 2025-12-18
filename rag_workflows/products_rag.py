@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from typing import TypedDict, List, Optional, Literal
 from langgraph.graph import StateGraph, END
 from sentence_transformers import SentenceTransformer
@@ -5,17 +9,8 @@ from pymongo import MongoClient
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from rag_workflows.config import langgraphConfig
 import re
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-# Configuration
-MONGO_URI = os.getenv("MONGO_URI")
-DATABASE_NAME = os.getenv("DATABASE_NAME")
-PRODUCTS_COLLECTION = os.getenv("PRODUCTS_COLLECTION")
-PRODUCTS_VECTOR_INDEX_NAME = os.getenv("PRODUCTS_VECTOR_INDEX_NAME")
 
 # Define State Schema
 class ProductRAGState(TypedDict):
@@ -49,9 +44,9 @@ def initialize_models():
     
     if mongo_collection is None:
         print("Connecting to MongoDB...")
-        client = MongoClient(MONGO_URI)
-        db = client[DATABASE_NAME]
-        mongo_collection = db[PRODUCTS_COLLECTION]
+        client = MongoClient(langgraphConfig.MONGO_URI)
+        db = client[langgraphConfig.DATABASE_NAME]
+        mongo_collection = db[langgraphConfig.PRODUCTS_COLLECTION]
 
 # Node 1: Validate Input (PURE - no state initialization)
 def validate_input(state: ProductRAGState) -> ProductRAGState:
@@ -172,7 +167,7 @@ def search_products(state: ProductRAGState) -> ProductRAGState:
     pipeline = [
         {
             "$vectorSearch": {
-                "index": PRODUCTS_VECTOR_INDEX_NAME,
+                "index": langgraphConfig.PRODUCTS_VECTOR_INDEX_NAME,
                 "path": "embedding",
                 "queryVector": embeddings,
                 "numCandidates": num_candidates,
