@@ -1,15 +1,20 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional
+from typing import Optional
 from datetime import datetime
 from contextlib import asynccontextmanager
-from rag_workflows.products_rag import run_product_rag, initialize_models
+from api.products_search.ProductsSearchRequest import ProductsSearchRequest
+from api.products_search.ProductsSearchResponse import ProductsSearchResponse
+from api.documents_search.DocumentSearchRequest import DocumentSearchRequest
+from api.documents_search.DocumentSearchResponse import DocumentSearchResponse
+from rag_workflows.products_rag import run_product_rag, initialize_models as init_product_models
 from rag_workflows.documents_rag import run_document_rag, initialize_models as init_document_models
 import concurrent.futures
 import asyncio
 import logging
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
+title = "RAG API Playground"
+version = "1.0.0"
 
 # Configure logging
 logging.basicConfig(
@@ -18,64 +23,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Pydantic models for request/response validation
-class SearchRequest(BaseModel):
-    query: str = Field(..., min_length=1, max_length=500, description="User search query")
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "query": "blue Nike running shoes under $100"
-            }
-        }
-
-class ProductResponse(BaseModel):
-    name: str
-    brand: Optional[str]
-    color: Optional[str]
-    price: float
-    currency: Optional[str]
-    description: Optional[str]
-    url: Optional[str]
-    images: Optional[List[str]]
-    score: float
-
-class SearchResponse(BaseModel):
-    llm_response: str = Field(..., alias="LlmResponse")
-    products: List[Dict] = Field(..., alias="Products")
-    query: str
-    timestamp: str
-    processing_time_ms: float
-
-    class Config:
-        populate_by_name = True
-
-class DocumentSearchRequest(BaseModel):
-    query: str = Field(..., min_length=1, max_length=500, description="User question about documents")
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "query": "What is the return policy for shoes?"
-            }
-        }
-
-class DocumentSearchResponse(BaseModel):
-    llm_response: str = Field(..., alias="LlmResponse")
-    documents: List[Dict] = Field(..., alias="Documents")
-    query: str
-    timestamp: str
-    processing_time_ms: float
-
-    class Config:
-        populate_by_name = True
-
 # Lifespan context manager for startup/shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Initialize models once
     logger.info("Starting up - initializing models...")
-    initialize_models()
+    init_product_models()
     init_document_models()
     logger.info("Models initialized successfully")
     yield
@@ -84,13 +37,11 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="Product RAG API",
-    description="Semantic product search with AI-powered recommendations",
-    version="1.0.0",
+    title=title,
+    version=version,
     lifespan=lifespan
 )
 
-# Health check endpoint
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -98,12 +49,10 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "rag-api",
-        "endpoints": ["product_search", "document_search"]
     }
 
-# Main search endpoint
-@app.post("/search/products", response_model=SearchResponse)
-async def search_products(request: SearchRequest):
+@app.post("/search/products", response_model=ProductsSearchResponse)
+async def search_products(request: ProductsSearchRequest):
     """
     Search for products using semantic search and get AI-powered recommendations
 
@@ -123,7 +72,7 @@ async def search_products(request: SearchRequest):
 
         logger.info(f"[PRODUCTS] Search completed in {processing_time:.2f}ms - Found {len(result['Products'])} products")
 
-        return SearchResponse(
+        return ProductsSearchResponse(
             LlmResponse=result["LlmResponse"],
             Products=result["Products"],
             query=request.query,
@@ -135,7 +84,6 @@ async def search_products(request: SearchRequest):
         logger.error(f"[PRODUCTS] Error processing search request: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-# Document search endpoint
 @app.post("/search/documents", response_model=DocumentSearchResponse)
 async def search_documents(request: DocumentSearchRequest):
     """
@@ -169,19 +117,6 @@ async def search_documents(request: DocumentSearchRequest):
         logger.error(f"[DOCUMENTS] Error processing search request: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-# Root endpoint
-@app.get("/")
-async def root():
-    """API information endpoint"""
-    return {
-        "name": "Product RAG API",
-        "version": "1.0.0",
-        "endpoints": {
-            "search": "/search (POST)",
-            "health": "/health (GET)",
-            "docs": "/docs (GET)"
-        }
-    }
 
 if __name__ == "__main__":
     import uvicorn
